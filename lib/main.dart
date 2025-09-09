@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Free Gift - Glass Design',
+      title: 'Free Gift',
       theme: GlassTheme.theme,
       builder: (context, child) {
         // Create responsive theme based on screen size
