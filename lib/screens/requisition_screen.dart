@@ -4,6 +4,7 @@ import 'dart:io';
 import '../models/requisition.dart';
 import '../services/requisition_service.dart';
 import '../services/free_gift_service.dart';
+import '../services/customer_service.dart';
 import '../theme/glass_theme.dart';
 import '../widgets/widgets.dart';
 import '../utils/responsive.dart';
@@ -18,23 +19,51 @@ class RequisitionScreen extends StatefulWidget {
 class _RequisitionScreenState extends State<RequisitionScreen> {
   final RequisitionService _requisitionService = RequisitionService();
   final FreeGiftService _freeGiftService = FreeGiftService();
+  final CustomerService _customerService = CustomerService();
   final TextEditingController _customerIdController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
 
   String? _selectedItem;
   XFile? _selectedImage;
   bool _isLoading = false;
+  String? _customerName;
 
   @override
   void initState() {
     super.initState();
+    _customerIdController.addListener(_onCustomerIdChanged);
   }
 
   @override
   void dispose() {
+    _customerIdController.removeListener(_onCustomerIdChanged);
     _customerIdController.dispose();
     _quantityController.dispose();
     super.dispose();
+  }
+
+  void _onCustomerIdChanged() async {
+    final customerId = _customerIdController.text.trim();
+    if (customerId.isNotEmpty) {
+      try {
+        final name = await _customerService.getCustomerName(customerId);
+        if (mounted) {
+          setState(() {
+            _customerName = name;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _customerName = null;
+          });
+        }
+      }
+    } else {
+      setState(() {
+        _customerName = null;
+      });
+    }
   }
 
   Future<void> _addRequisitionItem() async {
@@ -214,6 +243,62 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
               hint: 'กรอกรหัสลูกค้า',
               keyboardType: TextInputType.number,
             ),
+            if (_customerName != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: Responsive.padding(
+                  context,
+                  mobile: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  tablet: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  desktop: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person,
+                      color: Colors.green,
+                      size: Responsive.iconSize(
+                        context,
+                        mobile: 18,
+                        tablet: 20,
+                        desktop: 22,
+                      ),
+                    ),
+                    SizedBox(
+                      width: Responsive.spacing(
+                        context,
+                        mobile: 8,
+                        tablet: 10,
+                        desktop: 12,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'ชื่อลูกค้า: $_customerName',
+                        style: TextStyle(
+                          fontSize: Responsive.fontSize(
+                            context,
+                            mobile: 14,
+                            tablet: 15,
+                            desktop: 16,
+                          ),
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 10), // 12*0.85
             Row(
               children: [
@@ -412,8 +497,8 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
         ),
         GlassContainer(
           borderRadius: 20,
-          backgroundColor: GlassTheme.glassBackground,
-          borderColor: GlassTheme.glassBorder,
+          backgroundColor: Colors.white.withValues(alpha: 0.05), // เพิ่มความโปร่งใสให้ชัดเจนขึ้น
+          borderColor: GlassTheme.glassBorder.withValues(alpha: 0.8), // เพิ่มความชัดของกรอบ
           child: StreamBuilder<List<String>>(
             stream: _freeGiftService.getAllActiveFreeGifts().map(
               (gifts) => gifts.map((gift) => gift.itemName).toList(),
@@ -485,13 +570,25 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
                     vertical: 16,
                   ),
                 ),
-                dropdownColor: Color(0x15FFFFFF),
+                dropdownColor: const Color(0xFF2A2D3A), // เปลี่ยนเป็นสีเข้มที่ชัดเจนขึ้น
+                borderRadius: BorderRadius.circular(12), // เพิ่ม border radius
+                elevation: 8, // เพิ่มเงาให้ชัดเจน
                 items: items.map((item) {
                   return DropdownMenuItem(
                     value: item,
-                    child: Text(
-                      item,
-                      style: const TextStyle(color: GlassTheme.textPrimary),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        item,
+                        style: const TextStyle(
+                          color: Colors.white, // ใช้สีขาวเพื่อให้ชัดเจน
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   );
                 }).toList(),
@@ -501,13 +598,15 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
                 hint: Text(
                   'เลือกรายการ',
                   style: TextStyle(
-                    color: GlassTheme.textSecondary,
+                    color: GlassTheme.textSecondary.withValues(alpha: 0.8), // เพิ่มความชัดเจน
                     fontSize: 15,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 icon: Icon(
                   Icons.arrow_drop_down,
-                  color: GlassTheme.textSecondary,
+                  color: GlassTheme.textPrimary, // เปลี่ยนเป็นสีหลักให้ชัดเจน
+                  size: 28,
                 ),
               );
             },

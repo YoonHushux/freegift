@@ -26,7 +26,6 @@ class _RequisitionReportsScreenState extends State<RequisitionReportsScreen> {
   List<String> _customerIds = [];
   List<String> _itemNames = [];
   final Set<int> _expandedItems = {}; // เพิ่มการจัดการการขยาย
-  Map<String, String> _customerNames = {}; // เก็บชื่อลูกค้า
 
   String? _selectedCustomer;
   String? _selectedItem;
@@ -56,32 +55,9 @@ class _RequisitionReportsScreenState extends State<RequisitionReportsScreen> {
       final customerIds = await _reportService.getAllCustomerIds();
       final itemNames = await _reportService.getAllItemNames();
 
-      print(
-        '🔄 Loading customer names for ${customerIds.length} unique customers...',
-      );
-
-      // Load customer names เฉพาะที่ต้องการ (ไม่ใช่ทั้งหมด)
-      final customerNames = await _customerService.getCustomerNamesByIds(
-        customerIds,
-      );
-
-      // Debug: ตรวจสอบข้อมูลลูกค้า
-      print('📊 Customer IDs needed: ${customerIds.length}');
-      print('📋 Customer Names loaded: ${customerNames.length} items');
-      print('📈 Cache stats: ${_customerService.getCacheStats()}');
-
-      // ตรวจสอบว่ามีข้อมูลลูกค้าหรือไม่
-      final hasCustomerData = await _customerService.hasCustomerData();
-      if (!hasCustomerData && customerIds.isNotEmpty) {
-        _showErrorSnackBar(
-          'ไม่พบข้อมูลลูกค้า กรุณาอัพโหลดไฟล์ Customer.xlsx ในหน้า Settings',
-        );
-      }
-
       setState(() {
         _customerIds = customerIds;
         _itemNames = itemNames;
-        _customerNames = customerNames;
       });
 
       // Listen to reports stream
@@ -369,13 +345,11 @@ class _RequisitionReportsScreenState extends State<RequisitionReportsScreen> {
             ),
           ),
           ..._customerIds.map((customerId) {
-            final customerName = _customerNames[customerId] ?? customerId;
             return DropdownMenuItem(
               value: customerId,
               child: Text(
-                '$customerName ($customerId)', // แสดงทั้งชื่อและรหัส
+                customerId,
                 style: const TextStyle(color: GlassTheme.textPrimary),
-                overflow: TextOverflow.ellipsis,
               ),
             );
           }),
@@ -950,32 +924,17 @@ class _RequisitionReportsScreenState extends State<RequisitionReportsScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
-                            _customerNames[report.customerId] ?? 'ไม่พบข้อมูล',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            report.customerId,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: GlassTheme.textPrimary,
                             ),
+                            overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                           ),
-                          if (_customerNames[report.customerId] != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              '(${report.customerId})',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w400,
-                                color: GlassTheme.textSecondary.withValues(
-                                  alpha: 0.7,
-                                ),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
                         ],
                       ),
                     ),
@@ -1024,51 +983,8 @@ class _RequisitionReportsScreenState extends State<RequisitionReportsScreen> {
       ),
       child: Column(
         children: [
-          // ข้อมูลลูกค้า (เพิ่มใหม่)
-          _buildDetailRow(
-            icon: Icons.person_rounded,
-            label: 'ลูกค้า',
-            content: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                gradient: LinearGradient(
-                  colors: [
-                    GlassTheme.primary.withValues(alpha: 0.2),
-                    GlassTheme.primary.withValues(alpha: 0.1),
-                  ],
-                ),
-                border: Border.all(
-                  color: GlassTheme.primary.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _customerNames[report.customerId] ?? 'ไม่พบข้อมูลลูกค้า',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: GlassTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'รหัส: ${report.customerId}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: GlassTheme.textSecondary.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // ข้อมูลลูกค้า
+          _buildCustomerDetailRow(report.customerId),
           const SizedBox(height: 16),
           // ข้อมูลสินค้า
           _buildDetailRow(
@@ -1218,6 +1134,79 @@ class _RequisitionReportsScreenState extends State<RequisitionReportsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCustomerDetailRow(String customerId) {
+    return FutureBuilder<String>(
+      future: _customerService.getCustomerName(customerId),
+      builder: (context, snapshot) {
+        final customerName = snapshot.data ?? 'กำลังโหลด...';
+
+        return _buildDetailRow(
+          icon: Icons.person_rounded,
+          label: 'ลูกค้า',
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ชื่อลูกค้า
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [
+                      GlassTheme.secondary.withValues(alpha: 0.2),
+                      GlassTheme.secondary.withValues(alpha: 0.1),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: GlassTheme.secondary.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline_rounded,
+                      size: 18,
+                      color: GlassTheme.secondary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        customerName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: snapshot.hasData
+                              ? GlassTheme.textPrimary
+                              : GlassTheme.textSecondary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (snapshot.connectionState == ConnectionState.waiting)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            GlassTheme.secondary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "inventorywang"
-  }
+    "default": "inventorywang",
+    "staging": "inventorywang"
+  },
+  "targets": {},
+  "etags": {}
 }
